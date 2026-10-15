@@ -66,8 +66,6 @@ jobs:
 
     - name: Load custom configuration (initram)
       run: |
-        mkdir -p imwrt/files
-        cp -R "$GITHUB_WORKSPACE/files/." imwrt/files/
         cp "$GITHUB_WORKSPACE/files/.config_initram" imwrt/.config
         chmod +x $DIY_P2_SH
         cd imwrt

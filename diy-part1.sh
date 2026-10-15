@@ -21,7 +21,7 @@ src-link fantastic_packages_special  fantastic_packages/feeds/special
 EOF
 
 git clone https://github.com/gSpotx2f/luci-app-internet-detector.git package/internet-detector
-git clone https://github.com/alexwbaule/telegramopenwrt.git package/telegram-openwrt
+# git clone https://github.com/alexwbaule/telegramopenwrt.git package/telegram-openwrt
 
 # add custom DTS
 mkdir -p target/linux/ramips/image/mt7621
