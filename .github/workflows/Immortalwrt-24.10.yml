@@ -164,6 +164,7 @@ jobs:
         cd imwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
+
     - name: Compile squash firmware
       id: compile_squash
       run: |
