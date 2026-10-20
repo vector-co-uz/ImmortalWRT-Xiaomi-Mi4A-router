@@ -171,6 +171,7 @@ jobs:
         cd imwrt
         echo "Checking squash config for 32MB device"
         grep -q '^CONFIG_TARGET_ramips_mt7621_DEVICE_xiaomi_mi-router-4a-gigabit-32mb=y' .config
+
         make download -j8
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 V=s
@@ -182,7 +183,7 @@ jobs:
 
     - name: Organize squash firmware
       id: organize_squash
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: env.UPLOAD_FIRMWARE == 'true' && steps.compile_squash.outputs.status == 'success' && !cancelled()
       run: |
         cd imwrt/bin/targets/*/*
 
@@ -292,7 +293,7 @@ jobs:
 
     - name: Generate release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: env.UPLOAD_RELEASE == 'true' && steps.organize_squash.outputs.status == 'success' && !cancelled()
       run: |
         # Compose release tag from product, version, device and build date
         VERSION="${VERSION_SHORT:-$(date +%Y.%m.%d)}"
