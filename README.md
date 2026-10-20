@@ -25,8 +25,6 @@
   [Footstrap](https://github.com/VizzleTF/luci-theme-footstrap);
 - дополнительные пакеты из
   [fantastic-packages](https://github.com/fantastic-packages/packages);
-- LuCI-интерфейс для iPerf3;
-- динамический MOTD при входе по SSH;
 - адрес роутера после загрузки: `10.10.11.1`.
 
 ## Файлы прошивки
