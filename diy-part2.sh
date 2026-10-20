@@ -30,3 +30,11 @@ chmod +x files/etc/uci-defaults/99-vector-settings
 cp -f "$GITHUB_WORKSPACE/files/40-luci-theme" \
     files/etc/uci-defaults/40-luci-theme
 chmod +x files/etc/uci-defaults/40-luci-theme
+
+# Install the lightweight dynamic MOTD and reusable status command.
+mkdir -p files/etc/profile.d files/usr/bin
+cp -f "$GITHUB_WORKSPACE/files/etc/profile.d/99-router-motd.sh" \
+    files/etc/profile.d/99-router-motd.sh
+cp -f "$GITHUB_WORKSPACE/files/usr/bin/router-status" \
+    files/usr/bin/router-status
+chmod +x files/etc/profile.d/99-router-motd.sh files/usr/bin/router-status

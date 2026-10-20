@@ -1,0 +1,157 @@
+#!/bin/sh
+
+# Lightweight system summary for ImmortalWrt/OpenWrt.
+# Uses only utilities that are already present in this firmware image.
+
+if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && [ -z "${NO_COLOR:-}" ]; then
+	C_TITLE='\033[1;36m'
+	C_LABEL='\033[1;34m'
+	C_OK='\033[1;32m'
+	C_WARN='\033[1;33m'
+	C_RESET='\033[0m'
+else
+	C_TITLE=''
+	C_LABEL=''
+	C_OK=''
+	C_WARN=''
+	C_RESET=''
+fi
+
+json_value() {
+	jsonfilter -s "$1" -e "$2" 2>/dev/null
+}
+
+show_row() {
+	printf "${C_LABEL}%-13s${C_RESET} %s\n" "$1" "$2"
+}
+
+format_uptime() {
+	local total days hours minutes
+	total="${1%%.*}"
+	[ -n "$total" ] || total=0
+	days=$((total / 86400))
+	hours=$(((total % 86400) / 3600))
+	minutes=$(((total % 3600) / 60))
+
+	if [ "$days" -gt 0 ]; then
+		printf '%dd %02dh %02dm' "$days" "$hours" "$minutes"
+	elif [ "$hours" -gt 0 ]; then
+		printf '%dh %02dm' "$hours" "$minutes"
+	else
+		printf '%dm' "$minutes"
+	fi
+}
+
+interface_summary() {
+	local name data up proto device address
+	name="$1"
+	data="$(ubus call "network.interface.$name" status 2>/dev/null)"
+	[ -n "$data" ] || {
+		printf 'not configured'
+		return
+	}
+
+	up="$(json_value "$data" '@.up')"
+	proto="$(json_value "$data" '@.proto')"
+	device="$(json_value "$data" '@.l3_device')"
+	address="$(json_value "$data" '@["ipv4-address"][0].address')"
+
+	if [ "$up" != "true" ]; then
+		printf '%s' "down"
+		[ -n "$proto" ] && printf ' (%s)' "$proto"
+		return
+	fi
+
+	printf '%s' "${address:-no IPv4}"
+	[ -n "$device" ] && printf ' on %s' "$device"
+	[ -n "$proto" ] && printf ' (%s)' "$proto"
+}
+
+temperature_value() {
+	local zone raw
+	for zone in /sys/class/thermal/thermal_zone*/temp; do
+		[ -r "$zone" ] || continue
+		read -r raw < "$zone"
+		case "$raw" in
+			''|*[!0-9-]*) continue ;;
+		esac
+		if [ "$raw" -ge 1000 ] 2>/dev/null; then
+			awk -v value="$raw" 'BEGIN { printf "%.1f C", value / 1000 }'
+		else
+			printf '%s C' "$raw"
+		fi
+		return
+	done
+	printf 'not available'
+}
+
+board_json="$(ubus call system board 2>/dev/null)"
+model="$(json_value "$board_json" '@.model')"
+firmware="$(json_value "$board_json" '@.release.description')"
+target="$(json_value "$board_json" '@.release.target')"
+host="$(uci -q get system.@system[0].hostname)"
+[ -n "$host" ] || host="$(hostname 2>/dev/null)"
+[ -n "$host" ] || host='router'
+
+read -r uptime_seconds _ < /proc/uptime
+uptime_text="$(format_uptime "$uptime_seconds")"
+load="$(cut -d ' ' -f 1-3 /proc/loadavg 2>/dev/null)"
+memory="$(awk '
+	/^MemTotal:/ { total=$2 }
+	/^MemFree:/ { free=$2 }
+	/^Buffers:/ { buffers=$2 }
+	/^Cached:/ { cached=$2 }
+	/^MemAvailable:/ { available=$2 }
+	END {
+		if (total > 0) {
+			if (available == 0) available=free+buffers+cached
+			used=total-available
+			printf "%.1f / %.1f MiB (%d%%)", used/1024, total/1024, used*100/total
+		}
+	}' /proc/meminfo 2>/dev/null)"
+
+if [ -d /overlay ]; then
+	flash="$(df -h /overlay 2>/dev/null | awk 'END { print $3 " / " $2 " used (" $5 ")" }')"
+else
+	flash="$(df -h / 2>/dev/null | awk 'END { print $3 " / " $2 " used (" $5 ")" }')"
+fi
+
+ssid_24="$(uci -q get wireless.@wifi-iface[0].ssid)"
+ssid_5="$(uci -q get wireless.@wifi-iface[1].ssid)"
+wifi_text='not configured'
+if [ -n "$ssid_24" ] || [ -n "$ssid_5" ]; then
+	wifi_text="${ssid_24:-disabled} / ${ssid_5:-disabled}"
+fi
+
+leases=0
+[ ! -r /tmp/dhcp.leases ] || leases="$(wc -l < /tmp/dhcp.leases)"
+connections='not available'
+[ ! -r /proc/net/nf_conntrack ] || connections="$(wc -l < /proc/net/nf_conntrack)"
+
+printf '\n'
+printf "${C_TITLE}  ImmortalWrt router status${C_RESET}\n"
+printf '  ------------------------------------------------------------\n'
+show_row 'Hostname' "$host"
+show_row 'Model' "${model:-unknown}"
+show_row 'Firmware' "${firmware:-unknown}"
+show_row 'Kernel' "$(uname -r)${target:+ | $target}"
+show_row 'Local time' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+show_row 'Uptime' "$uptime_text"
+show_row 'Load' "${load:-not available}"
+show_row 'Memory' "${memory:-not available}"
+show_row 'Flash' "${flash:-not available}"
+show_row 'Temperature' "$(temperature_value)"
+printf '  ------------------------------------------------------------\n'
+show_row 'LAN' "$(interface_summary lan)"
+show_row 'WAN' "$(interface_summary wan)"
+show_row 'Wi-Fi SSIDs' "$wifi_text"
+show_row 'DHCP leases' "$leases"
+show_row 'Connections' "$connections"
+printf '  ------------------------------------------------------------\n'
+lan_address="$(ubus call network.interface.lan status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)"
+if [ -n "$lan_address" ]; then
+	printf "  ${C_OK}Web UI:${C_RESET} http://%s/" "$lan_address"
+else
+	printf "  ${C_OK}Web UI:${C_RESET} unavailable"
+fi
+printf "    ${C_WARN}Status:${C_RESET} router-status\n\n"
