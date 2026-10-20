@@ -162,6 +162,7 @@ jobs:
       run: |
         cp "$GITHUB_WORKSPACE/files/.config_full" imwrt/.config
         cd imwrt
+        make defconfig
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
 
