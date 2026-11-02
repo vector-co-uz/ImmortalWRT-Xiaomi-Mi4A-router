@@ -15,7 +15,7 @@ EOF
 git clone --depth 1 https://github.com/ChesterGoodiny/luci-theme-proton2025.git package/luci-theme-proton2025
 git clone https://github.com/VizzleTF/luci-theme-footstrap.git package/footstrap
 git clone https://github.com/gSpotx2f/luci-app-internet-detector.git package/internet-detector
-git clone https://github.com/alexwbaule/telegramopenwrt.git package/telegram-openwrt
+#git clone https://github.com/alexwbaule/telegramopenwrt.git package/telegram-openwrt
 
 # Add the lightweight LuCI frontend for iperf3. Its upstream Makefile assumes
 # that the package lives inside the LuCI source tree, so point it at our feed.
